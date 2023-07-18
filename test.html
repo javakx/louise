@@ -1,10 +1,31 @@
 <html>
 	<head>
 		<script src="./louise.js"></script>
+		<style>
+			#testBorder .north {
+				background-color: Red;
+			}
+			#testBorder .west {
+				background-color: Green;
+			}
+			#testBorder .center {
+				background-color: Blue;
+			}
+			#testBorder .east {
+				background-color: Orange;
+			}
+			#testBorder .north {
+				background-color: Purple;
+			}
+		</style>
 	</head>
 	<body>
-		<ui-borderlayout text="Hello world! (attr)">
-			<span slot="content">Hello again! (slot)</span>
+		<ui-borderlayout id="testBorder">
+			<span slot="north">North!</span>
+			<span slot="west">West!</span>
+			<span slot="center">Center!</span>
+			<span slot="east">East!</span>
+			<span slot="south">South!</span>
 		</ui-borderlayout>
 	</body>
 </html>

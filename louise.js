@@ -27,39 +27,50 @@ class BorderLayout extends UIElement {
 			`
 			<style>
 				.uiBorderLayout {
-					position: Relative;
 				}
-				.uiBorderLayout .north {
-					position: Absolute;  left: 0px;  top: 0px;  right: 0px;
+				.uiBorderLayout > .vertical {
+					display: Flex;  flex-direction: Column;  flex-wrap: NoWrap;
+					justify-content: Space-Between;  
+					width: 100%;  height: 100%;
+					align-items: Stretch;  /* Stretch north/horizontal/south to fill horizontal space. */
 				}
-				.uiBorderLayout .west {
-					position: Absolute;  left: 0px;;
+				.uiBorderLayout >.vertical > .north {
 				}
-				.uiBorderLayout .center {
-					position: Absolute;
+				.uiBorderLayout > .vertical > .horizontal {
+					display: Flex;  flex-direction: Row;  flex-wrap: NoWrap;
+					justify-content: Space-Between;  
+					align-items: Stretch;  /* Stretch west/center/east to fill vertical space. */
+					flex-grow: 1;  /* Expand to fill vertical flex. */
 				}
-				.uiBorderLayout .east {
-					position: Absolute;  right:0px;
+				.uiBorderLayout > .vertical > .horizontal > .west {
 				}
-				.uiBorderLayout .south {
-					position: Absolute;  left: 0px;  bottom;: 0px;  right:0px;
+				.uiBorderLayout > .vertical > .horizontal > .center {
+					flex-grow: 1;  /* Expand to fill horizontal flex. */
 				}
+				.uiBorderLayout > .vertical > .horizontal > .east {
+				}
+				.uiBorderLayout >.vertical > .south {
+				}				
 			</style>
 			<div class="uiBorderLayout">
-				<div class="north">
-					<slot name="north"></slot>
-				</div>
-				<div class="west">
-					<slot name="west"></slot>
-				</div>
-				<div class="center">
-					<slot name="cemter"></slot>
-				</div>
-				<div class="east">
-					<slot name="east"></slot>
-				</div>
-				<div class="south">
-					<slot name="south"></slot>
+				<div class="vertical">
+					<div class="north">
+						<slot name="north"></slot>
+					</div>
+					<div class="horizontal">
+						<div class="west">
+							<slot name="west"></slot>
+						</div>
+						<div class="center">
+							<slot name="center"></slot>
+						</div>
+						<div class="east">
+							<slot name="east"></slot>
+						</div>
+					</div>
+					<div class="south">
+						<slot name="south"></slot>
+					</div>
 				</div>
 			</div>
 			`;
