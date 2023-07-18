@@ -2,30 +2,62 @@
 	<head>
 		<script src="./louise.js"></script>
 		<style>
-			#testBorder .north {
+			html {
+				width:100%; height:100%;
+			}
+			body {
+				margin: 0px;  padding: 0px;
+			}
+
+			#testBorder [slot] > div {
+				width:100%; height:100%;
+				padding: 0.5em;
+				box-sizing: border-box;
+			}
+			#testBorder > [slot='north'] > div {
 				background-color: Red;
 			}
-			#testBorder .west {
+			#testBorder > [slot='west'] > div {
 				background-color: Green;
 			}
-			#testBorder .center {
+			#testBorder > [slot='center'] > div {
 				background-color: Blue;
 			}
-			#testBorder .east {
+			#testBorder > [slot='east'] > div {
 				background-color: Orange;
 			}
-			#testBorder .north {
+			#testBorder > [slot='south'] > div {
 				background-color: Purple;
 			}
 		</style>
 	</head>
 	<body>
 		<ui-borderlayout id="testBorder">
-			<span slot="north">North!</span>
-			<span slot="west">West!</span>
-			<span slot="center">Center!</span>
-			<span slot="east">East!</span>
-			<span slot="south">South!</span>
+			<span slot="north">
+				<div>North!</div>
+			</span>
+			<span slot="west">
+				<div>West!</div>
+			</span>
+			<span slot="center">
+				<ui-borderlayout>
+					<span slot="north">
+						<div>NORTH</div>
+					</span>
+					<span slot="center">
+						<div>CENTER</div>
+					</span>
+					<span slot="south">
+						<div>SOUTH</div>
+					</span>
+				</ui-borderlayout>
+			</span>
+			<span slot="east">
+				<div>East!</div>
+			</span>
+			<span slot="south">
+				<div>South!</div>
+			</span>
 		</ui-borderlayout>
 	</body>
 </html>

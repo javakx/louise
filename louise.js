@@ -8,10 +8,6 @@
 class UIElement extends HTMLElement {
 	constructor() {
 		super();
-		this.northHeight = 0;
-		this.eastWidth = 0;
-		this.westWidth = 0;
-		this.southHeight = 0;
 	}
 }
 
@@ -86,3 +82,35 @@ class BorderLayout extends UIElement {
 }
 
 customElements.define("ui-borderlayout" , BorderLayout);
+
+class GridLayout extends UIElement {
+	constructor() {
+		super();
+	}
+
+	connectedCallback() {
+		// Define component markup.
+		let templateEl = document.createElement('template');
+		templateEl.innerHTML = 
+			`
+			<style>
+				.uiGridLayout {
+					display: Grid;
+				}
+			</style>
+			<div class="uiGridLayout">
+			</div>
+			`;
+		
+		// Read attr and add context into markup.
+		let rows = this.getAttribute('rows');
+		let columns = this.getAttribute('columns');
+		//templateEl.content.querySelector('div').textContent = text;
+
+		// Add to shadow DOM.
+		let shadow = this.attachShadow({ mode: "open" }); // Sets and returns this.shadowRoot .
+		shadow.appendChild(templateEl.content.cloneNode(true));
+	}
+}
+
+customElements.define("ui-gridlayout" , GridLayout);
