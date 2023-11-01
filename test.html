@@ -30,6 +30,21 @@
 				background-color: Purple;
 			}
 		</style>
+
+		<script type="module">
+			import { Component,Border,Button } from "./scene_test.js";
+			let c = new Border({
+				contents: [ 
+					new Button({}) ,
+					new Border({
+						contents: [
+							new Button({})
+						]
+					})
+				]
+			});
+			console.log(c);
+		</script>
 	</head>
 	<body>
 		<ui-borderlayout id="testBorder">
