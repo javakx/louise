@@ -1,0 +1,57 @@
+<html>
+<head>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+	<script type="module">		
+		class AppStateVerbose extends AppState {
+			constructor() {
+				super();
+				console.log('constructor:length',this.initialHistoryStateLength);
+			}
+
+			anno(a) {
+				console.log(`-- ${a} --`);
+				return this;
+			}
+			
+			pushScreen(screen,params=null) {
+				super.pushScreen(screen,params);
+				console.log('pushScreen:screen,params,peek,length',screen,params,this.peekScreen(),this.length());
+			}
+			replaceScreen(screen,params) {
+				super.replaceScreen(screen,params);
+				console.log('replaceScreen:peek,length',this.peekScreen(),this.length());
+			}
+			changeParams(params) {
+				super.changeParams(params);
+				console.log('changeParams:peek,length',this.peekScreen(),this.length());
+			}
+			popScreen() {
+				let r = super.popScreen();
+				console.log('popScreen:popped:peek,length',r,this.peekScreen(),this.length());
+			}
+		}
+		
+		function test1(appState) {
+			appState.on('stateChanged' , (ev) => {
+				console.log('stateChanged',ev);
+			});
+			
+			appState.anno('First set').pushScreen('screen1');
+			appState.anno('Update params').pushScreen('screen1',{param1:"1",param2:"2"});
+			appState.anno('Second screen').pushScreen('screen2');
+			appState.anno('Pop second screen').popScreen();
+			appState.anno('Third screen').replaceScreen('screen3',{paramA:'A',paramB:'B'});
+			appState.anno('Change params').changeParams({param1:-1,param2:-2});
+			appState.anno('Pop third screen').popScreen();
+		}
+		
+		import { AppState } from '../src/AppState.js';
+		$(document).ready(() => {
+			let appState = new AppStateVerbose();
+			test1(appState);
+		});
+	</script>
+</head>
+<body>
+</body>
+</html>

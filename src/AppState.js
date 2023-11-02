@@ -1,6 +1,15 @@
-class AppState {
+/**
+ * Helps track application state in a way that uses and is compatible with the browser
+ * window's history.
+ * 
+ * https://developer.mozilla.org/en-US/docs/Web/API/History_API
+ */
+export class AppState {
 	constructor() {
 		this.pureAddr = window.location.href.match(/([^\#|\?]*)/)[1];
+		
+		//this.purgeStack();
+		this.initialHistoryStateLength = window.history.length;
 		
 		this.removedState = null;                              // During a pop, this is the state popped.
 		this.eventHandlers = {};                               // Key'd list of handler arrays. { eventName:[func,func,...] , ... }
@@ -10,8 +19,15 @@ class AppState {
 	}
 
 	get pureAppAddress() {
-		return this.addrPure;
+		return this.pureAddr;
 	}
+
+	/*purgeStack() { / * private * /
+		let st = window.history.state;
+		while( ('appBase' in st) && (st.appBase === this.pureAddr) ) {
+			window.history.back();
+		}
+	}*/
 
 	/**
 	 * Add an event callback function.
@@ -39,7 +55,7 @@ class AppState {
 			// Inject our own state objects into standard history event.
 			let ev = {
 				oldState: this.removedState ,
-				newState: this.peekState() ,
+				newState: this.peekScreen() ,
 				originalEvent: origEv
 			}
 			this.removedState = null;  // Important: must clear, or future pops will be rejected.
@@ -53,6 +69,7 @@ class AppState {
 		} catch(err) {
 			// Error shouldn't prevent us from popping.
 			this.removedState = null;
+			throw err;
 		}
 	}
 
@@ -63,9 +80,14 @@ class AppState {
 	 * @param {*} params 
 	 * @returns  state object , state url 
 	 */
-	buildState(screen,params) {  /* private */
+	buildState(screen,params=null) {  /* private */
+		if(!screen) {
+			throw new Error('Cannot build state without a screen name.');
+		}
+	
 		// State object.
 		let state = {
+			appBase: this.pureAddr ,
 			screen: screen ,
 			params: params
 		}
@@ -74,14 +96,13 @@ class AppState {
 		// and anchor can be ommitted (as such string can be empty.) 
 		let url = '';
 		if(params) {
-			url = '?';
+			url = '';
 			for(let p in params) {
 				url = url + (url.length?'&':'') + encodeURIComponent(p) + '=' + encodeURIComponent(params[p]);
 			}
+			url = '?' + url;
 		}
-		if(screen) {
-			url = url + '#' + screen;
-		}
+		url = url + '#' + screen;
 
 		return { state , url }
 	}
@@ -92,14 +113,14 @@ class AppState {
 	 * @param {*} screen 
 	 * @param {*} params 
 	 */
-	pushScreen(screen,params) {
+	pushScreen(screen,params=null) {
 		try {
 			let { state , url } = this.buildState(screen,params);
 
 			// If the screen is the same as the current screen (only the params have changed), 
 			// replace the state rather than add to stack. There should never be multiple
 			// consecutive states with the same screen.
-			let currentState = this.peekState();
+			let currentState = this.peekScreen();
 			if((currentState !==null) && (currentState.screen === screen)) {  // Same screen.
 				window.history.replaceState(state,'',url);
 			} else {  // Different screen, or empty stack.
@@ -111,6 +132,7 @@ class AppState {
 		} catch(err) {
 			// Error shouldn't prevent us from popping.
 			this.removedState = null;
+			throw err;
 		}
 	}
 
@@ -125,6 +147,7 @@ class AppState {
 			let { state , url } = this.buildState(screen,params);
 			
 			// Unlike pushScreen(), always replace topmost state, never add.
+			let currentState = this.peekScreen();
 			window.history.replaceState(state,'',url);
 			// Fire event.
 			this.removedState = currentState;
@@ -132,6 +155,7 @@ class AppState {
 		} catch(err) {
 			// Error shouldn't prevent us from popping.
 			this.removedState = null;
+			throw err;
 		}
 	}
 
@@ -141,11 +165,12 @@ class AppState {
 	 * @param {*} params 
 	 */
 	changeParams(params) {
-		let screen = peekState();
+		let state = this.peekScreen();
+		let screen = state?state.screen:null;
 		if(!screen) {
 			throw new Error('No screen set, stack empty.');
 		}
-		this.pushScreen(screen,params);
+		this.replaceScreen(screen,params);
 	}
 
 	/**
@@ -158,18 +183,33 @@ class AppState {
 		if(this.removedState !== null) {
 			throw new Error('Cannot pop screen midway through existing pop operation.');
 		}
-		this.removedState = this.peekState();
+		this.removedState = this.peekScreen();
 		window.history.back();
+		// Don't fire event as browser will fire a popstate event, so react to that
+		// event instead (see constructor.)
 		return this.removedState;
 	}
 
 	/**
 	 * Returns current state (topmost on state stack.)
 	 * 
-	 * @returns state object.
+	 * @returns state object
 	 */
 	// FIXME: Do we need to need to permit peeking of states other then the topmost?
-	peekState() {
+	peekScreen() {
 		return window.history.state;
+	}
+
+	/**
+	 * Returns the size of the state stack. If 'all' is true, returns the real
+	 * length of the browser window history, including pages before our app. If 
+	 * 'all' is false, discount pages on history that existed when this class was
+	 * instanciated, giving only the number of pages actually created by our app.
+	 * 
+	 * @param {*} all
+	 * @returns length of stack as int
+	 */
+	length(all=false) {
+		return window.history.length - (all?0:this.initialHistoryStateLength);
 	}
 }
