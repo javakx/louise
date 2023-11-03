@@ -11,10 +11,16 @@ export class AppState {
 		//this.purgeStack();
 		this.initialHistoryStateLength = window.history.length;
 		
-		this.removedState = null;                              // During a pop, this is the state popped.
-		this.eventHandlers = {};                               // Key'd list of handler arrays. { eventName:[func,func,...] , ... }
+		this.popStatePromiseObj = null;
 		window.addEventListener('popstate' , (ev) => {
-			this.call('stateChanged',ev);
+			if(!this.popStatePromiseObj) {
+				throw new Error("No pop object.");
+			}
+			let newState = ev.state;
+			let oldState = this.popStatePromiseObj.oldState;
+			let resolve = this.popStatePromiseObj.resolve;
+			this.popStatePromiseObj = null;
+			resolve({oldState:oldState,newState:newState});
 		});
 	}
 
@@ -30,68 +36,17 @@ export class AppState {
 	}*/
 
 	/**
-	 * Add an event callback function.
-	 *   stateChanged          Fired when state change completed.
-	 * 
-	 * @param {*} eventName 
-	 * @param {*} func 
-	 */
-	on(eventName,func) {
-		if(!(eventName in this.eventHandlers)) {
-			this.eventHandlers[eventName] = [];
-		}
-		this.eventHandlers[eventName].push(func);
-	}
-
-	/**
-	 * Call event handlers. (If this was invoked in response to a native history event,
-	 * include the orignal native event object in our own.)
-	 * 
-	 * @param {*} eventName 
-	 * @param {*} origEv 
-	 */
-	call(eventName,origEv=null) {  /* private */
-		try {
-			// Inject our own state objects into standard history event.
-			let ev = {
-				oldState: this.removedState ,
-				newState: this.peekScreen() ,
-				originalEvent: origEv
-			}
-			this.removedState = null;  // Important: must clear, or future pops will be rejected.
-			
-			let funcList = this.eventHandlers[eventName];
-			if(funcList) {
-				for(let f of funcList) {
-					f(ev);
-				}
-			}
-		} catch(err) {
-			// Error shouldn't prevent us from popping.
-			this.removedState = null;
-			throw err;
-		}
-	}
-
-	/**
 	 * Builds both the state oject, and a URL representing that state.
 	 * 
 	 * @param {*} screen 
 	 * @param {*} params 
 	 * @returns  state object , state url 
 	 */
-	buildState(screen,params=null) {  /* private */
+	buildState(screen,params=null) {  / * private * /
 		if(!screen) {
 			throw new Error('Cannot build state without a screen name.');
 		}
 	
-		// State object.
-		let state = {
-			appBase: this.pureAddr ,
-			screen: screen ,
-			params: params
-		}
-
 		// URL, should have pattern ?key=val&key=val#screen although either/both query
 		// and anchor can be ommitted (as such string can be empty.) 
 		let url = '';
@@ -104,7 +59,16 @@ export class AppState {
 		}
 		url = url + '#' + screen;
 
-		return { state , url }
+		// State object.
+		let state = {
+			//id: Date.now() + '-' + Math.floor(Math.random() * 1000000) ,
+			appURLBase: this.pureAddr ,
+			appURLState: url ,
+			screen: screen ,
+			params: params
+		}
+		
+		return state;
 	}
 
 	/**
@@ -114,26 +78,21 @@ export class AppState {
 	 * @param {*} params 
 	 */
 	pushScreen(screen,params=null) {
-		try {
-			let { state , url } = this.buildState(screen,params);
+		return new Promise((resolve,reject) => {
+			let newState = this.buildState(screen,params);
 
 			// If the screen is the same as the current screen (only the params have changed), 
 			// replace the state rather than add to stack. There should never be multiple
 			// consecutive states with the same screen.
-			let currentState = this.peekScreen();
-			if((currentState !==null) && (currentState.screen === screen)) {  // Same screen.
-				window.history.replaceState(state,'',url);
+			let oldState = this.peekScreen();
+			if((oldState) && (oldState.screen === screen)) {  // Same screen.
+				window.history.replaceState(newState,'',newState.appURLState);
 			} else {  // Different screen, or empty stack.
-				window.history.pushState(state,'',url);
+				window.history.pushState(newState,'',newState.appURLState);
 			}
-			// Fire event.
-			this.removedState = currentState;
-			this.call('stateChanged');
-		} catch(err) {
-			// Error shouldn't prevent us from popping.
-			this.removedState = null;
-			throw err;
-		}
+			// Resolve promise.
+			resolve({oldState:oldState,newState:newState});
+		});
 	}
 
 	/**
@@ -143,20 +102,15 @@ export class AppState {
 	 * @param {*} params 
 	 */
 	replaceScreen(screen,params) {
-		try {
-			let { state , url } = this.buildState(screen,params);
-			
+		return new Promise((resolve,reject) => {
+			let newState = this.buildState(screen,params);
+				
 			// Unlike pushScreen(), always replace topmost state, never add.
-			let currentState = this.peekScreen();
-			window.history.replaceState(state,'',url);
-			// Fire event.
-			this.removedState = currentState;
-			this.call('stateChanged');
-		} catch(err) {
-			// Error shouldn't prevent us from popping.
-			this.removedState = null;
-			throw err;
-		}
+			let oldState = this.peekScreen();
+			window.history.replaceState(newState,'',newState.appURLState);
+			// Resolve promise.
+			resolve({oldState:oldState,newState:newState});
+		});
 	}
 
 	/**
@@ -170,7 +124,7 @@ export class AppState {
 		if(!screen) {
 			throw new Error('No screen set, stack empty.');
 		}
-		this.replaceScreen(screen,params);
+		return this.replaceScreen(screen,params);
 	}
 
 	/**
@@ -180,14 +134,23 @@ export class AppState {
 	 * @returns state object
 	 */
 	popScreen() {
-		if(this.removedState !== null) {
-			throw new Error('Cannot pop screen midway through existing pop operation.');
+		if(this.popStatePromiseObj) {
+			throw new Error('Pop already in progress.');
 		}
-		this.removedState = this.peekScreen();
-		window.history.back();
-		// Don't fire event as browser will fire a popstate event, so react to that
-		// event instead (see constructor.)
-		return this.removedState;
+		return new Promise((resolve,reject) => {
+			let oldState = this.peekScreen();
+
+			// When popstate event fires (see constructor) we can find the appropriate
+			// resolve function to call.
+			this.popStatePromiseObj = {
+				resolve: resolve ,
+				reject: reject ,
+				oldState: oldState	
+			}
+			
+			// Upon completion, this will cause a popstate event from the browser.
+			window.history.back();
+		});
 	}
 
 	/**
