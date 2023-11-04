@@ -1,26 +1,61 @@
+export class AppState {
+	#eventHandlers = {}
+	
+	pushState(name,params=null) {}
+	replaceState(name,params) {}
+	changeParams(params) {}
+	popState() {}
+	peekState() {}
+
+	on(eventName , func) {
+		if(!(eventName in this.#eventHandlers)) {
+			this.#eventHandlers[eventName] = []
+		}
+		this.#eventHandlers[eventName].push(func);
+	}
+
+	call(eventName , ev) {
+		let list = this.#eventHandlers[eventName];
+		if(list) {
+			for(let l of list) {
+				l(ev);
+			}
+		}
+	}
+}
+
 /**
  * Helps track application state in a way that uses and is compatible with the browser
  * window's history.
  * 
  * https://developer.mozilla.org/en-US/docs/Web/API/History_API
  */
-export class AppState {
+export class WebAddressAppState extends AppState {
 	constructor() {
+		super();
+		
 		this.pureAddr = window.location.href.match(/([^\#|\?]*)/)[1];
 		
-		//this.purgeStack();
+		//this.#purgeStack();
 		this.initialHistoryStateLength = window.history.length;
 		
+		this.currentState = null;
 		this.popStatePromiseObj = null;
 		window.addEventListener('popstate' , (ev) => {
-			if(!this.popStatePromiseObj) {
-				throw new Error("No pop object.");
-			}
 			let newState = ev.state;
-			let oldState = this.popStatePromiseObj.oldState;
-			let resolve = this.popStatePromiseObj.resolve;
-			this.popStatePromiseObj = null;
-			resolve({oldState:oldState,newState:newState});
+			let oldState = this.currentState;
+			this.currentState = newState;
+			if(this.popStatePromiseObj) {
+				let resolve = this.popStatePromiseObj.resolve;
+				this.popStatePromiseObj = null;
+				resolve({oldState:oldState,newState:newState});
+			} else {
+				this.call('statePopped',{
+					originalEvent: ev ,
+					oldState: oldState ,
+					newState: newState
+				});
+			}
 		});
 	}
 
@@ -28,7 +63,7 @@ export class AppState {
 		return this.pureAddr;
 	}
 
-	/*purgeStack() { / * private * /
+	/*#purgeStack() { / * private * /
 		let st = window.history.state;
 		while( ('appBase' in st) && (st.appBase === this.pureAddr) ) {
 			window.history.back();
@@ -38,16 +73,16 @@ export class AppState {
 	/**
 	 * Builds both the state oject, and a URL representing that state.
 	 * 
-	 * @param {*} screen 
+	 * @param {*} name 
 	 * @param {*} params 
 	 * @returns  state object , state url 
 	 */
-	buildState(screen,params=null) {  / * private * /
-		if(!screen) {
-			throw new Error('Cannot build state without a screen name.');
+	#buildState(name,params=null) {  /* private */
+		if(!name) {
+			throw new Error('Cannot build state without a name.');
 		}
 	
-		// URL, should have pattern ?key=val&key=val#screen although either/both query
+		// URL, should have pattern ?key=val&key=val#name although either/both query
 		// and anchor can be ommitted (as such string can be empty.) 
 		let url = '';
 		if(params) {
@@ -57,14 +92,14 @@ export class AppState {
 			}
 			url = '?' + url;
 		}
-		url = url + '#' + screen;
+		url = url + '#' + name;
 
 		// State object.
 		let state = {
 			//id: Date.now() + '-' + Math.floor(Math.random() * 1000000) ,
 			appURLBase: this.pureAddr ,
 			appURLState: url ,
-			screen: screen ,
+			name: name ,
 			params: params
 		}
 		
@@ -72,80 +107,82 @@ export class AppState {
 	}
 
 	/**
-	 * Add screen to state stack, or change the parameters of the current screen.
+	 * Add state stack, or change the parameters of the current state.
 	 * 
-	 * @param {*} screen 
+	 * @param {*} name 
 	 * @param {*} params 
 	 */
-	pushScreen(screen,params=null) {
+	pushState(name,params=null) {
 		return new Promise((resolve,reject) => {
-			let newState = this.buildState(screen,params);
+			let newState = this.#buildState(name,params);
 
-			// If the screen is the same as the current screen (only the params have changed), 
+			// If the name is the same as the current name (only the params have changed), 
 			// replace the state rather than add to stack. There should never be multiple
-			// consecutive states with the same screen.
-			let oldState = this.peekScreen();
-			if((oldState) && (oldState.screen === screen)) {  // Same screen.
+			// consecutive states with the same name.
+			let oldState = this.peekState();
+			if((oldState) && (oldState.name === name)) {  // Same name.
 				window.history.replaceState(newState,'',newState.appURLState);
-			} else {  // Different screen, or empty stack.
+			} else {  // Different name, or empty stack.
 				window.history.pushState(newState,'',newState.appURLState);
 			}
+			// Remember current state.
+			this.currentState = newState;
 			// Resolve promise.
 			resolve({oldState:oldState,newState:newState});
 		});
 	}
 
 	/**
-	 * Replace current (topmost) screen state.
+	 * Replace current (topmost) state.
 	 * 
-	 * @param {*} screen 
+	 * @param {*} name 
 	 * @param {*} params 
 	 */
-	replaceScreen(screen,params) {
+	replaceState(name,params) {
 		return new Promise((resolve,reject) => {
-			let newState = this.buildState(screen,params);
+			let newState = this.#buildState(name,params);
 				
-			// Unlike pushScreen(), always replace topmost state, never add.
-			let oldState = this.peekScreen();
+			// Unlike pushState(), always replace topmost state, never add.
+			let oldState = this.peekState();
 			window.history.replaceState(newState,'',newState.appURLState);
+			// Remember current state.
+			this.currentState = newState;
 			// Resolve promise.
 			resolve({oldState:oldState,newState:newState});
 		});
 	}
 
 	/**
-	 * Convenience function to just change params of current screen.
+	 * Convenience function to just change params of current state.
 	 * 
 	 * @param {*} params 
 	 */
 	changeParams(params) {
-		let state = this.peekScreen();
-		let screen = state?state.screen:null;
-		if(!screen) {
-			throw new Error('No screen set, stack empty.');
+		let state = this.peekState();
+		let name = state?state.name:null;
+		if(!name) {
+			throw new Error('No state set, stack empty.');
 		}
-		return this.replaceScreen(screen,params);
+		return this.replaceState(name,params);
 	}
 
 	/**
-	 * Pop current state off of the state stack, and return popped state of removed 
-	 * screen.
+	 * Pop current state off of the state stack.
 	 * 
 	 * @returns state object
 	 */
-	popScreen() {
+	popState() {
 		if(this.popStatePromiseObj) {
 			throw new Error('Pop already in progress.');
 		}
 		return new Promise((resolve,reject) => {
-			let oldState = this.peekScreen();
+			let oldState = this.peekState();
 
 			// When popstate event fires (see constructor) we can find the appropriate
 			// resolve function to call.
 			this.popStatePromiseObj = {
 				resolve: resolve ,
-				reject: reject ,
-				oldState: oldState	
+				reject: reject
 			}
 			
 			// Upon completion, this will cause a popstate event from the browser.
@@ -159,7 +196,7 @@ export class AppState {
 	 * @returns state object
 	 */
 	// FIXME: Do we need to need to permit peeking of states other then the topmost?
-	peekScreen() {
+	peekState() {
 		return window.history.state;
 	}
 
@@ -172,7 +209,15 @@ export class AppState {
 	 * @param {*} all
 	 * @returns length of stack as int
 	 */
-	length(all=false) {
+	/*length(all=false) {
 		return window.history.length - (all?0:this.initialHistoryStateLength);
-	}
+	}*/
 }
+
+/*
+ * TODO:
+ * LocalStorageAppState : saves the state in LocalStorage of browser.
+ * SessionStorageAppState : saves the state in SessionStorage of browser.
+ * CookieAppState : saves the state in cookie in browser.
+ * TransientAppState : saves the state in JavaScript objects.
+ */

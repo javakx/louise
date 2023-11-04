@@ -2,7 +2,7 @@
 <head>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 	<script type="module">		
-		class AppStateVerbose extends AppState {
+		class AppStateVerbose extends WebAddressAppState {
 			constructor() {
 				super();
 				console.log('constructor:length',this.initialHistoryStateLength);
@@ -13,56 +13,66 @@
 				return this;
 			}
 			
-			pushScreen(screen,params=null) {
-				return super.pushScreen(screen,params).then((states) => {
-					console.log('pushScreen:oldScreen,newScreen',states.oldState?.appURLState,states.newState?.appURLState);
+			pushState(name,params=null) {
+				return super.pushState(name,params).then((states) => {
+					console.log('pushState:oldState,newState',states.oldState?.appURLState,states.newState?.appURLState);
 				});
 			}
-			replaceScreen(screen,params) {
-				return super.replaceScreen(screen,params).then((states) => {
-					console.log('replaceScreen:oldState,newState',states.oldState?.appURLState,states.newState?.appURLState);
+			replaceState(name,params) {
+				return super.replaceState(name,params).then((states) => {
+					console.log('replaceState:oldState,newState',states.oldState?.appURLState,states.newState?.appURLState);
 				});
 			}
 			changeParams(params) {
-				let state = this.peekScreen();
-				let screen = state?state.screen:null;
-				if(!screen) {
-					throw new Error('No screen set, stack empty.');
+				let state = this.peekState();
+				let name = state?state.name:null;
+				if(!name) {
+					throw new Error('No name set, stack empty.');
 				}
-				return super.replaceScreen(screen,params).then((states) => {
+				return super.replaceState(name,params).then((states) => {
 					console.log('changeParams:oldState,newState',states.oldState?.appURLState,states.newState?.appURLState);
 				});
 			}
-			popScreen() {
-				return super.popScreen().then((states) => {
-					console.log('popScreen:oldState,newState',states.oldState?.appURLState,states.newState?.appURLState);
+			popState() {
+				return super.popState().then((states) => {
+					console.log('popState:oldState,newState',states.oldState?.appURLState,states.newState?.appURLState);
 				});
 			}
 		}
 		
 		function test1(appState) {
-			return appState.anno('First set').pushScreen('screen1')
+			appState.on('statePopped' , (ev) => {
+				console.log('popEvent:oldState,newState',ev.oldState?.appURLState,ev.newState?.appURLState);
+			});
+			
+			return appState.anno('First set').pushState('state1')
 				.then(() => {
-					return appState.anno('Update params').pushScreen('screen1',{param1:"1",param2:"2"});
+					return appState.anno('Update params').pushState('state1',{param1:"1",param2:"2"});
 				})
 				.then(() => {
-					return appState.anno('Second screen').pushScreen('screen2');
+					return appState.anno('Second state').pushState('state2');
 				})
 				.then(() => {
-					return appState.anno('Pop second screen').popScreen();
+					return appState.anno('Pop second state').popState();
 				})
 				.then(() => {
-					return appState.anno('Third screen replaces first').replaceScreen('screen3',{paramA:'A',paramB:'B'});
+					return appState.anno('Third state replaces first').replaceState('state3',{paramA:'A',paramB:'B'});
 				})
 				.then(() => {
 					return appState.anno('Change params').changeParams({param1:-1,param2:-2});
 				})
 				.then(() => {
-					return appState.anno('Pop third screen').popScreen();
+					return appState.anno('Pop third state').popState();
+				})
+				.then(() => {
+					return appState.anno('Add fourth state').pushState('state4');
+				})
+				.then(() => {
+					return appState.anno('Add fifth state').pushState('state5',{param1:'ABC',param2:'XYZ'});
 				});
 		}
 		
-		import { AppState } from '../src/AppState.js';
+		import { WebAddressAppState } from '../src/AppState.js';
 		$(document).ready(() => {
 			let appState = new AppStateVerbose();
 			test1(appState);

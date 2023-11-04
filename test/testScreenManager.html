@@ -1,0 +1,75 @@
+<html>
+<head>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+	<script type="module">		
+		class ScreenManagerVerbose extends ScreenManager {
+			constructor(appState) {
+				super(appState);
+				console.log('constructor');
+			}
+
+			anno(a) {
+				console.log(`-- ${a} --`);
+				return this;
+			}
+		}
+		
+		function test1(screenManager) {
+			screenManager.addScreenEvent('screen1' , 'screenOpen' , (ev) => {
+				console.log('screen1:screenOpen',ev);
+			});
+			screenManager.addScreenEvent('screen1' , 'screenClose' , (ev) => {
+				console.log('screen1:screenClose',ev);
+			});
+			screenManager.addScreenEvent('screen1' , 'screenSleep' , (ev) => {
+				console.log('screen1:screenSleep',ev);
+			});
+			screenManager.addScreenEvent('screen1' , 'screenAwake' , (ev) => {
+				console.log('screen1:screenAwake',ev);
+			});
+
+			screenManager.addScreenEvent('screen2' , 'screenOpen' , (ev) => {
+				console.log('screen2:screenOpen',ev);
+			});
+			screenManager.addScreenEvent('screen2' , 'screenClose' , (ev) => {
+				console.log('screen2:screenClose',ev);
+			});
+			screenManager.addScreenEvent('screen2' , 'screenSleep' , (ev) => {
+				console.log('screen2:screenSleep',ev);
+			});
+			screenManager.addScreenEvent('screen2' , 'screenAwake' , (ev) => {
+				console.log('screen2:screenAwake',ev);
+			});
+
+			screenManager.addScreenEvent('screen3' , 'screenOpen' , (ev) => {
+				console.log('screen3:screenOpen',ev);
+			});
+			screenManager.addScreenEvent('screen3' , 'screenClose' , (ev) => {
+				console.log('screen3:screenClose',ev);
+			});
+			screenManager.addScreenEvent('screen3' , 'screenSleep' , (ev) => {
+				console.log('screen3:screenSleep',ev);
+			});
+			screenManager.addScreenEvent('screen3' , 'screenAwake' , (ev) => {
+				console.log('screen3:screenAwake',ev);
+			});
+
+			screenManager.anno('Push screen1').pushScreen('screen1');
+			screenManager.anno('Push screen2').pushScreen('screen2');
+			screenManager.anno('Replace screen3').replaceScreen('screen3');
+			screenManager.anno('Pop').popScreen();
+			screenManager.anno('Pop').popScreen();
+		}
+		
+		import { WebAddressAppState } from '../src/AppState.js';
+		import { ScreenManager } from '../src/ScreenManager.js';
+		$(document).ready(() => {
+			let appState = new WebAddressAppState();
+			let screenManager = new ScreenManagerVerbose(appState);
+			test1(screenManager);
+		});
+	</script>
+</head>
+<body>
+</body>
+</html>
